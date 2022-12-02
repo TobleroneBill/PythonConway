@@ -12,7 +12,7 @@ Running = False  # Gamestate - True = playing, False = Deciding
 # Pygame stuff
 pygame.init()
 SCREEN = pygame.display.set_mode((WIDTH, HEIGHT))
-FPS = 6
+FPS = 60
 CLOCK = pygame.time.Clock()
 # Colors
 Colors = ((96, 108, 56),  # Bright Muddy Green
@@ -40,15 +40,22 @@ class Cell:
             pygame.draw.rect(SCREEN, Colors[4], cellRect)
         else:
             pygame.draw.rect(SCREEN, Colors[1], cellRect)
-        pygame.draw.rect(SCREEN, Colors[0], cellRect, BorderSize)
+        pygame.draw.rect(SCREEN, Colors[0], cellRect, BorderSize) # Draw Border
 
 
-# To handle what Cell is alive
+# To handle what Cell logic
 class CellChecker:
 
     def __init__(self, cellSizeX, cellSizeY):
-        self.cellGrid = self.GenerateGrid(cellSizeX, cellSizeY)  # Creates Grid when generating
-        self.cellList = self.PopualteGrid(self.cellGrid)  # Makes a seperate list for each cell
+        self.cellGrid = self.GenerateGrid(cellSizeX, cellSizeY)     # Creates Grid when generating
+        self.cellList = self.PopualteGrid(self.cellGrid)            # Makes a seperate list for each cell
+        self.cellPositions = self.GetPos()                          # actual screen posistions of each cell
+
+    def GetPos(self):
+        pos = []
+        for cell in self.cellList:
+            pos.append(cell.pos)
+        return tuple(pos)
 
     def GenerateGrid(self, cellSizeX, cellSizeY):  # make a grid based on the cell sizes
         cellList = []
@@ -57,13 +64,13 @@ class CellChecker:
             for cell in range(0, cellSizeY + 1):  # Y value
                 y = cell
                 cellList.append((x, y))
-        return cellList
+        return tuple(cellList)
 
     def PopualteGrid(self, grid):  # for each gridspace, Insert a Cell
         cells = []
         for item in grid:
             cells.append(Cell(False, item))
-        return cells
+        return tuple(cells)
 
     def PGrid(self):  # debug stuff
         print(self.cellList)
@@ -83,46 +90,55 @@ class CellChecker:
     def Running(self):
         for item in self.cellList:  # Check neighbours
             liveNeighbor = 0
-            print('loop start')
-            print(f'itempos = {item.pos}')
             minx = item.pos[0] - GRIDSIZE  # x+1,y+1
+            maxx = item.pos[0] + GRIDSIZE  # x-1,y-1
+            miny = item.pos[1] - GRIDSIZE
+            maxy = item.pos[1] + GRIDSIZE
+
             if minx < 0:  # if at edges, just set the value to edge
                 minx = 0
-            maxx = item.pos[0] + GRIDSIZE  # x-1,y-1
             if maxx > WIDTH:
                 maxx = WIDTH
-            miny = item.pos[1] - GRIDSIZE
             if miny < 0:
                 miny = 0
-            maxy = item.pos[1] + GRIDSIZE
             if maxy > HEIGHT:
                 maxy = HEIGHT
-            neighborCoords = []
-            # Range function doesn't include the number at its upper bound for some reason so have to add grid
-            for i in range(minx, maxx + GRIDSIZE, GRIDSIZE):  # for min to max x values
-                for j in range(miny, maxy + GRIDSIZE, GRIDSIZE):  # for min to max y values
-                    index = (i, j)
-                    if index != item.pos:
-                        neighborCoords.append(index)
 
-            for coords in neighborCoords:
-                for cell in self.cellList:
-                    if cell.pos == coords and cell.alive:
-                        liveNeighbor += 1
-            print(neighborCoords)
-            print(f'Live neigbors: {liveNeighbor}')
+            # Hard Coded for efficiency (used to use a nested for loop)
+            neighborCoords = (
+                (minx,miny),(item.pos[0],miny),(maxx,miny), # Above
+                (minx,item.pos[1]),(maxx,item.pos[1]),      # Sides
+                (minx,maxy),(item.pos[0],maxy),(maxx,maxy)    # Below
+            )
+
+            # get the index of these cells in the list
+            cellindexes = []
+            for coord in neighborCoords:
+                cellindexes.append(self.cellPositions.index(coord))
+
+            # Using the index of the neighbor cells, check if they are alive
+            for index in cellindexes:
+                if self.cellList[index].alive:
+                    #print(self.cellList[index].pos)
+                    liveNeighbor += 1
+
+
+
+
 
             # If alive cell meets neigbors
-            if liveNeighbor < 2 and item.alive:
-                item.alive = False
-            if liveNeighbor < 3 and item:
-                item.alive = False
-
-            # If dead cell meets neigbors
-            if liveNeighbor > 3 and not item.alive:
+            if liveNeighbor == 2:
                 item.alive = True
+            if liveNeighbor == 3:
+                item.alive = True
+            if liveNeighbor< 2 or liveNeighbor > 3:
+                item.alive = False
 
-            print('loop end')
+
+            if liveNeighbor != 0:
+                print(f'coord {item.pos} Live Neigbors {liveNeighbor}')
+                print(f'status is {item.alive}')
+
 
 
 # Handle General Stuff
@@ -149,7 +165,7 @@ def update():
     EventCheck()  # Check User Quits + other events
     grid.Draw()  # Draw Grid
     pygame.display.update()  # Update Screen
-    CLOCK.tick(FPS)
+    CLOCK.tick(60)
 
 
 # Make the grid bigger or smaller
@@ -201,4 +217,4 @@ while True:
         grid.Running()
 
     update()
-    print(CLOCK.get_fps())
+    #print(CLOCK.get_fps())
