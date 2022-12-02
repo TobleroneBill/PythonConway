@@ -29,11 +29,21 @@ class Cell:
         self.alive = alive
         self.coord = coordinate
         self.pos = coordinate[0] * GRIDSIZE, coordinate[1] * GRIDSIZE
+        self.neighbors = 0
 
     def PrtCoord(self):
         print(self.pos)
 
+    def logic(self):
+        if self.neighbors == 2 and self.alive:
+            self.alive = True
+        elif self.neighbors == 3:
+            self.alive = True
+        else:
+            self.alive = False
+
     def Draw(self):
+
         cellRect = pygame.Rect(self.pos, (GRIDSIZE, GRIDSIZE))
         # Draw with Corrosponding Color
         if self.alive:
@@ -75,6 +85,10 @@ class CellChecker:
     def PGrid(self):  # debug stuff
         print(self.cellList)
 
+    def ClearCells(self):
+        for cell in self.cellList:
+            cell.alive = False
+
     def Randomize(self, upperLimit):
         for item in self.cellList:
             rng = random.randint(0, upperLimit)
@@ -88,12 +102,12 @@ class CellChecker:
             item.Draw()
 
     def Running(self):
-        for item in self.cellList:  # Check neighbours
+        for cell in self.cellList:  # Check neighbours
             liveNeighbor = 0
-            minx = item.pos[0] - GRIDSIZE  # x+1,y+1
-            maxx = item.pos[0] + GRIDSIZE  # x-1,y-1
-            miny = item.pos[1] - GRIDSIZE
-            maxy = item.pos[1] + GRIDSIZE
+            minx = cell.pos[0] - GRIDSIZE  # x+1,y+1
+            maxx = cell.pos[0] + GRIDSIZE  # x-1,y-1
+            miny = cell.pos[1] - GRIDSIZE
+            maxy = cell.pos[1] + GRIDSIZE
 
             if minx < 0:  # if at edges, just set the value to edge
                 minx = 0
@@ -105,10 +119,11 @@ class CellChecker:
                 maxy = HEIGHT
 
             # Hard Coded for efficiency (used to use a nested for loop)
+            #
             neighborCoords = (
-                (minx,miny),(item.pos[0],miny),(maxx,miny), # Above
-                (minx,item.pos[1]),(maxx,item.pos[1]),      # Sides
-                (minx,maxy),(item.pos[0],maxy),(maxx,maxy)    # Below
+                (minx,miny),(cell.pos[0],miny),(maxx,miny), # Above
+                (minx,cell.pos[1]),(maxx,cell.pos[1]),      # Sides
+                (minx,maxy),(cell.pos[0],maxy),(maxx,maxy)    # Below
             )
 
             # get the index of these cells in the list
@@ -119,25 +134,17 @@ class CellChecker:
             # Using the index of the neighbor cells, check if they are alive
             for index in cellindexes:
                 if self.cellList[index].alive:
-                    #print(self.cellList[index].pos)
                     liveNeighbor += 1
+            print(liveNeighbor)
+            cell.neighbors = liveNeighbor
 
 
 
+            #TODO: I think doing this individually, and not all at once is causing it to behave oddly
 
+        for cell in self.cellList:
+            cell.logic()
 
-            # If alive cell meets neigbors
-            if liveNeighbor == 2:
-                item.alive = True
-            if liveNeighbor == 3:
-                item.alive = True
-            if liveNeighbor< 2 or liveNeighbor > 3:
-                item.alive = False
-
-
-            if liveNeighbor != 0:
-                print(f'coord {item.pos} Live Neigbors {liveNeighbor}')
-                print(f'status is {item.alive}')
 
 
 
@@ -155,8 +162,11 @@ def EventCheck():
             if event.key == pygame.K_SPACE:
                 global Running
                 Running = not Running
-            if event.key == pygame.K_t:
+            if event.key == pygame.K_t: # single step run
                 grid.Running()
+            if event.key == pygame.K_c: # Clear
+                grid.ClearCells()
+
 
 
 # Update Screen
@@ -195,6 +205,7 @@ def DifferenceArray(leftClick):
 
     # print(cellIndex)
 
+
 while True:
     if not Running:
         pygame.display.set_caption('Deciding')
@@ -202,16 +213,8 @@ while True:
             DifferenceArray(True)
         if pygame.mouse.get_pressed()[2]:
             DifferenceArray(False)
-
         if pygame.key.get_pressed()[pygame.K_r]:
             grid.Randomize(3)
-
-        '''
-        if pygame.key.get_pressed()[pygame.K_a] and GRIDSIZE > 100:
-            SizeUpDown(False)
-        if pygame.key.get_pressed()[pygame.K_d] and GRIDSIZE < 1000:
-            SizeUpDown(True)
-        '''
     else:
         pygame.display.set_caption('Running')
         grid.Running()
